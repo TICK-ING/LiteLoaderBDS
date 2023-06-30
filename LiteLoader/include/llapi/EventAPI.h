@@ -660,7 +660,12 @@ public:
     Actor* mActor = nullptr;
     BlockInstance mBlockInstance;
 };
-
+class NpcCmdEvent : public EventTemplate<NpcCmdEvent> {
+public:
+    Actor* mNpc = nullptr;
+    std::string mCommand;
+    Player* mPlayer = nullptr;
+};
 class ProjectileSpawnEvent : public EventTemplate<ProjectileSpawnEvent> {
 public:
     Actor* mShooter = nullptr;
