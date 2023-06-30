@@ -9,9 +9,11 @@
 
 #include "llapi/mc/WeakEntityRef.hpp"
 #include "llapi/mc/ActorDamageSource.hpp"
+#include "llapi/mc/NpcSceneDialogueData.hpp"
 #include "llapi/mc/BaseCommandBlock.hpp"
 #include "llapi/mc/BedrockBlocks.hpp"
 #include "llapi/mc/Block.hpp"
+#include "llapi/mc/NpcComponent.hpp"
 #include "llapi/mc/BlockActor.hpp"
 #include "llapi/mc/BlockSource.hpp"
 #include "llapi/mc/CommandContext.hpp"
@@ -267,6 +269,7 @@ DECLARE_EVENT_DATA(ProjectileHitEntityEvent);
 DECLARE_EVENT_DATA(WitherBossDestroyEvent);
 DECLARE_EVENT_DATA(EntityRideEvent);
 DECLARE_EVENT_DATA(EntityStepOnPressurePlateEvent);
+DECLARE_EVENT_DATA(NpcCmdEvent);
 DECLARE_EVENT_DATA(ProjectileSpawnEvent);
 DECLARE_EVENT_DATA(ProjectileCreatedEvent);
 DECLARE_EVENT_DATA(EntityTransformEvent);
@@ -1839,7 +1842,39 @@ TClasslessInstanceHook(void, "?releaseUsing@TridentItem@@UEBAXAEAVItemStack@@PEA
     IF_LISTENED_END(ProjectileSpawnEvent)
     return original(this, a2, a3, a4);
 }
+#include "llapi/mc/WeakEntityRef.hpp"
+#include "llapi/mc/EntityContext.hpp"
+#include "llapi/mc/Npc.hpp"
 
+////////////// NpcCmd //////////////
+TInstanceHook(void,
+              "?executeCommandAction@NpcComponent@@QEAAXAEAVActor@@AEAVPlayer@@HAEBV?$basic_string@DU?$char_traits@D@"
+              "std@@V?$allocator@D@2@@std@@@Z",
+              NpcComponent, Actor* ac, Player* player, int a4, string& a5) {
+    IF_LISTENED(NpcCmdEvent) {
+        // IDA NpcComponent::executeCommandAction
+        // NpcSceneDialogueData data(*this, *ac, a5);
+
+        NpcSceneDialogueData data(WeakEntityRef(ac->getEntityContext().getWeakRef()), a5);
+
+        auto container = data.getActionsContainer();
+        if (container) {
+            auto actionAt = container->at(a4);
+            if (actionAt) {
+                if (auto* command = std::get_if<npc::CommandAction>(actionAt)) {
+                    NpcCmdEvent ev{};
+                    ev.mPlayer = player;
+                    ev.mNpc = ac;
+                    ev.mCommand = command->mActionValue.mText;
+                    if (!ev.call())
+                        return;
+                }
+            }
+        }
+    }
+    IF_LISTENED_END(NpcCmdEvent)
+    return original(this, ac, player, a4, a5);
+}
 ////////////// ArmorStandChange //////////////
 TInstanceHook(bool, "?_trySwapItem@ArmorStand@@AEAA_NAEAVPlayer@@W4EquipmentSlot@@@Z", ArmorStand, Player* a2, int a3) {
     IF_LISTENED(ArmorStandChangeEvent) {
