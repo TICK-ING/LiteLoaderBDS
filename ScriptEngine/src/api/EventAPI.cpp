@@ -128,6 +128,7 @@ enum class EVENT_TYPES : int {
     onMoneyTrans,
     onMoneySet,
     beforeMoneyAdd,
+onNpcCmd,
     beforeMoneyReduce,
     beforeMoneyTrans,
     beforeMoneySet,
@@ -853,7 +854,15 @@ void EnableEventListener(int eventId) {
                 IF_LISTENED_END(EVENT_TYPES::onMobDie);
             });
             break;
-
+ case EVENT_TYPES::onNpcCmd:
+            Event::NpcCmdEvent::subscribe([](const NpcCmdEvent& ev) {
+                IF_LISTENED(EVENT_TYPES::onNpcCmd) {
+                    CallEvent(EVENT_TYPES::onNpcCmd, EntityClass::newEntity(ev.mNpc), PlayerClass::newPlayer(ev.mPlayer),
+                              String::newString(ev.mCommand));
+                }
+                IF_LISTENED_END(EVENT_TYPES::onNpcCmd);
+            });
+            break;
         case EVENT_TYPES::onSpawnProjectile:
             Event::ProjectileSpawnEvent::subscribe([](const ProjectileSpawnEvent& ev) {
                 IF_LISTENED(EVENT_TYPES::onSpawnProjectile) {
